@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" width="320" height="100">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0EA5E9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0EA5E9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366F1;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Icon: Shopping bag with flow wave -->
+  <g transform="translate(10, 12)">
+    <!-- Bag body -->
+    <rect x="4" y="28" width="52" height="42" rx="6" ry="6" fill="url(#brandGrad)" />
+
+    <!-- Bag handle -->
+    <path d="M16 28 Q16 10 30 10 Q44 10 44 28"
+          fill="none"
+          stroke="url(#brandGrad)"
+          stroke-width="5"
+          stroke-linecap="round"
+          filter="url(#glow)"/>
+
+    <!-- Flow wave inside bag -->
+    <clipPath id="bagClip">
+      <rect x="4" y="28" width="52" height="42" rx="6" ry="6"/>
+    </clipPath>
+    <g clip-path="url(#bagClip)">
+      <path d="M0 52 Q15 44 30 52 Q45 60 60 52 L60 72 L0 72 Z"
+            fill="white"
+            opacity="0.18"/>
+      <path d="M0 60 Q15 52 30 60 Q45 68 60 60 L60 72 L0 72 Z"
+            fill="white"
+            opacity="0.12"/>
+    </g>
+
+    <!-- Shine dot -->
+    <circle cx="42" cy="38" r="4" fill="white" opacity="0.25"/>
+  </g>
+
+  <!-- Wordmark -->
+  <!-- "Shop" -->
+  <text x="90" y="67"
+        font-family="'Trebuchet MS', 'Gill Sans', sans-serif"
+        font-size="40"
+        font-weight="800"
+        letter-spacing="-1"
+        fill="url(#brandGrad)">Shop</text>
+
+  <!-- "Flow" -->
+  <text x="196" y="67"
+        font-family="'Trebuchet MS', 'Gill Sans', sans-serif"
+        font-size="40"
+        font-weight="300"
+        letter-spacing="-1"
+        fill="#1E293B">Flow</text>
+
+  <!-- Underline wave accent -->
+  <path d="M90 76 Q150 84 280 72"
+        fill="none"
+        stroke="url(#waveGrad)"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        opacity="0.6"/>
+</svg>

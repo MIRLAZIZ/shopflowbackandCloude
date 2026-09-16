@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" width="340" height="100">
+  <defs>
+    <linearGradient id="bar1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#38BDF8"/>
+      <stop offset="100%" style="stop-color:#38BDF8;stop-opacity:0.3"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA"/>
+      <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:0.3"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#818CF8"/>
+      <stop offset="100%" style="stop-color:#818CF8;stop-opacity:0.3"/>
+    </linearGradient>
+    <linearGradient id="bar4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C3AED"/>
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:0.3"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#38BDF8"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0EA5E9"/>
+      <stop offset="100%" style="stop-color:#7C3AED"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="topshadow">
+      <feDropShadow dx="0" dy="-1" stdDeviation="2" flood-color="#7C3AED" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- ====== ICON (no background) ====== -->
+
+  <!-- Base axis line -->
+  <line x1="8" y1="84" x2="84" y2="84" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Bar 1 -->
+  <rect x="10" y="68" width="13" height="16" rx="3.5" fill="url(#bar1)"/>
+  <!-- Bar 1 top cap -->
+  <rect x="10" y="68" width="13" height="4" rx="3.5" fill="#38BDF8" opacity="0.9"/>
+
+  <!-- Bar 2 -->
+  <rect x="27" y="52" width="13" height="32" rx="3.5" fill="url(#bar2)"/>
+  <rect x="27" y="52" width="13" height="4" rx="3.5" fill="#60A5FA" opacity="0.9"/>
+
+  <!-- Bar 3 -->
+  <rect x="44" y="36" width="13" height="48" rx="3.5" fill="url(#bar3)"/>
+  <rect x="44" y="36" width="13" height="4" rx="3.5" fill="#818CF8" opacity="0.9"/>
+
+  <!-- Bar 4 (tallest) -->
+  <rect x="61" y="16" width="13" height="68" rx="3.5" fill="url(#bar4)"/>
+  <rect x="61" y="16" width="13" height="4" rx="3.5" fill="#7C3AED" opacity="0.9"/>
+
+  <!-- Trend line -->
+  <polyline
+    points="16.5,66  33.5,50  50.5,34  67.5,14"
+    fill="none"
+    stroke="url(#lineGrad)"
+    stroke-width="2.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#glow)"/>
+
+  <!-- Trend dots -->
+  <circle cx="16.5" cy="66" r="3"   fill="white" stroke="#38BDF8" stroke-width="2.2"/>
+  <circle cx="33.5" cy="50" r="3"   fill="white" stroke="#60A5FA" stroke-width="2.2"/>
+  <circle cx="50.5" cy="34" r="3"   fill="white" stroke="#818CF8" stroke-width="2.2"/>
+  <circle cx="67.5" cy="14" r="4"   fill="white" stroke="#7C3AED" stroke-width="2.5" filter="url(#topshadow)"/>
+  <!-- top dot inner -->
+  <circle cx="67.5" cy="14" r="2"   fill="#7C3AED"/>
+
+  <!-- ====== WORDMARK ====== -->
+
+  <!-- Divider -->
+  <line x1="96" y1="18" x2="96" y2="82" stroke="#E2E8F0" stroke-width="1.5"/>
+
+  <!-- Shop -->
+  <text x="110" y="63"
+        font-family="'Trebuchet MS', 'Gill Sans', sans-serif"
+        font-size="42"
+        font-weight="800"
+        letter-spacing="-2"
+        fill="url(#textGrad)">Shop</text>
+
+  <!-- Flow -->
+  <text x="228" y="63"
+        font-family="'Trebuchet MS', 'Gill Sans', sans-serif"
+        font-size="42"
+        font-weight="300"
+        letter-spacing="-2"
+        fill="#334155">Flow</text>
+
+  <!-- Tagline -->
+  <text x="111" y="78"
+        font-family="'Courier New', monospace"
+        font-size="8.5"
+        letter-spacing="3.5"
+        fill="#94A3B8">DO'KON RAQAMLASHTIRISH</text>
+
+</svg>

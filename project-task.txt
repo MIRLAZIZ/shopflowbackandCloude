@@ -1,0 +1,2 @@
+sales da  quantity va date ga index berish,
+product da name, uid, barcode,  ga index berish

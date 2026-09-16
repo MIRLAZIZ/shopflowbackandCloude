@@ -1,0 +1,63 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Socket.io Test</title>
+    <!-- title icon -->
+     <link rel="shortcut icon" href="./shopflow-favicon.svg"  type="image/svg+xml">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 20px; }
+      #log { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; }
+      #log div { margin-bottom: 5px; }
+    </style>
+  </head>
+  <body>
+
+    <img src="./logo.svg" alt="" width="160" height="50">
+
+    <img src="./shopFlow.svg"  alt="" width="160" height="50">
+    <img src="./shopflow-logo-pro (1).svg" width="160" height="70" alt="">
+    <h1>Socket.io Notification Test</h1>
+    <div id="log"></div>
+
+    <!-- Socket.io client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const log = document.getElementById('log');
+
+      // Server URL: NestJS Socket.io Gateway port (default 3000)
+      const socket = io('http://localhost:3000/notifications'); // agar port boshqacha bo'lsa o'zgartiring
+
+      function addLog(msg) {
+        const div = document.createElement('div');
+        div.textContent = msg;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      socket.on('connect', () => {
+        addLog('✅ Connected to server. Socket ID: ' + socket.id);
+      });
+
+      socket.on('disconnect', () => {
+        addLog('⚠️ Disconnected from server.');
+      });
+
+      // Bu eventni NotificationProcessor emit qiladi
+      socket.on('new-sale', (data) => {
+      console.log('data', data);
+      
+        addLog('📢 New Sale Notification: ' + JSON.stringify(data));
+      });
+
+      // Test tugmasi (clientdan serverga event yuborish)
+      const testBtn = document.createElement('button');
+      testBtn.textContent = 'Send Test Sale Event';
+      testBtn.onclick = () => {
+        socket.emit('new-sale', { message: 'Test sale' });
+        addLog('➡️ Test sale event sent from client');
+      };
+      document.body.appendChild(testBtn);
+    </script>
+  </body>
+  </html>
