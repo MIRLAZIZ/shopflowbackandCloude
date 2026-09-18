@@ -547,19 +547,37 @@ export class ProductsService {
   }
 
 
-  async findAll(userId: number, page: number = 1, limit: number = 12): Promise<PaginationResponse<Product>> {
+  async findAll(
+    userId: number,
+    page: number = 1,
+    limit: number = 12,
+    filters?: { name?: string; stock?: string; status?: string },
+  ): Promise<PaginationResponse<Product>> {
     const skip = (page - 1) * limit;
 
-    const [products, total] = await this.productRepository.findAndCount({
-      where: {
-        user: { id: userId },
-      },
-      relations: ['unit'],
-      order: { createdAt: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const qb = this.productRepository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.unit', 'unit')
+      .where('p.user_id = :userId', { userId });
 
+    if (filters?.name?.trim()) {
+      qb.andWhere(
+        '(p.name LIKE :name OR p.barcode LIKE :name OR p.quick_code LIKE :name)',
+        { name: `%${filters.name.trim()}%` },
+      );
+    }
+    if (filters?.stock) {
+      qb.andWhere('p.stock = :stock', { stock: filters.stock });
+    }
+    if (filters?.status !== undefined && filters.status !== '') {
+      qb.andWhere('p.status = :status', { status: filters.status === 'true' });
+    }
+
+    const [products, total] = await qb
+      .orderBy('p.name', 'ASC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data: products,

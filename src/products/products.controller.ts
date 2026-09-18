@@ -88,13 +88,24 @@ export class ProductsController {
 
   /**
    * ✅ Barcha mahsulotlarni olish (narx bilan)
+   * Kassir (POS) ekranidagi doimiy mahsulotlar jadvali shu yerdan
+   * foydalanadi: sahifalash + qoldiq/holat bo'yicha filtr + matn qidiruv
    */
   @Get()
   findAll(
     @CurrentUser() user: AuthUserPayload,
-    @Query('page', ParseIntPipe) page: number
+    @Query('page', ParseIntPipe) page: number,
+    @Query('limit') limit?: string,
+    @Query('name') name?: string,
+    @Query('stock') stock?: string,
+    @Query('status') status?: string,
   ) {
-    return this.productsService.findAll(getOwnerId(user), page);
+    return this.productsService.findAll(
+      getOwnerId(user),
+      page,
+      limit ? Number(limit) : 12,
+      { name, stock, status },
+    );
   }
 
   /**
