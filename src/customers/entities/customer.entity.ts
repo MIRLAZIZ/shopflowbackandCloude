@@ -22,7 +22,7 @@ export class Customer {
   @Column()
   fullName!: string;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'varchar' })
   phone!: string | null;
 
   @Column({ type: 'text', nullable: true })

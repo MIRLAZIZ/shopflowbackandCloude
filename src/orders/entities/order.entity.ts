@@ -100,7 +100,7 @@ export class Order {
   // TODO(qarzdorlar moduli): Customer entity tayyor bo'lgach shu yerga
   // to'g'ridan-to'g'ri ManyToOne relation qo'yiladi. Hozircha faqat ID
   // saqlanadi, jadval sxemasi keyin o'zgarmasligi uchun.
-  @Column({ name: 'customer_id', nullable: true })
+  @Column({ name: 'customer_id', nullable: true, type: 'int' })
   customerId!: number | null;
 
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.COMPLETED })
@@ -112,7 +112,7 @@ export class Order {
   @Column({ type: 'timestamp', nullable: true })
   cancelledAt!: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'int' })
   cancelledBy!: number | null;
 
   @CreateDateColumn()

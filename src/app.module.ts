@@ -65,6 +65,7 @@ import { PaymentsModule } from './payments/payments.module';
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: RolesGuard }],
 })
+
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
