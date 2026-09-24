@@ -5,6 +5,8 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { OrderReturn } from './entities/order-return.entity';
+import { OrderReturnItem } from './entities/order-return-item.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { ProductsModule } from 'src/products/products.module';
 import { StatisticsModule } from 'src/statistics/statistics.module';
@@ -12,7 +14,7 @@ import { DebtsModule } from 'src/debts/debts.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Product]),
+    TypeOrmModule.forFeature([Order, OrderItem, OrderReturn, OrderReturnItem, Product]),
     ProductsModule,
     StatisticsModule,
     DebtsModule,

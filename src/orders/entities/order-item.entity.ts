@@ -83,6 +83,17 @@ export class OrderItem {
   })
   total!: number;
 
+  // Shu qatordan hozirgacha qancha miqdor qaytarilgan (qisman qaytarish
+  // uchun). quantity - returnedQuantity = hali mijozda qolgan miqdor.
+  @Column({
+    type: 'decimal',
+    precision: 18,
+    scale: 2,
+    default: 0,
+    transformer: decimalTransformer,
+  })
+  returnedQuantity!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

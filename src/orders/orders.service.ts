@@ -6,6 +6,8 @@ import { Queue } from 'bullmq';
 
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { OrderReturn } from './entities/order-return.entity';
+import { OrderReturnItem } from './entities/order-return-item.entity';
 import { Product } from 'src/products/entities/product.entity';
 import { ProductBatch } from 'src/products/entities/product-batch.entity';
 import { StatisticsService } from 'src/statistics/statistics.service';
@@ -17,6 +19,7 @@ import { OrderSearchParams } from 'common/interface/order-search';
 import { ReducedInterface } from 'common/interface/reduced.interface';
 import { AuthUserPayload, getOwnerId } from 'common/utils/owner.util';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateReturnDto } from './dto/create-return.dto';
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
@@ -24,6 +27,7 @@ const round2 = (value: number): number => Math.round(value * 100) / 100;
 export class OrdersService {
   constructor(
     @InjectRepository(Order) private readonly orderRepository: Repository<Order>,
+    @InjectRepository(OrderReturn) private readonly orderReturnRepository: Repository<OrderReturn>,
     private readonly statisticsService: StatisticsService,
     private readonly debtsService: DebtsService,
     @InjectQueue('sales-queue') private readonly saleQueue: Queue,
@@ -308,6 +312,179 @@ export class OrdersService {
     });
   }
 
+  /**
+   * ↩️ Qisman yoki to'liq qaytarish. `cancel()`dan farqi: butun chekni
+   * bekor qilmaydi, faqat ko'rsatilgan qatorlardan ko'rsatilgan miqdorni
+   * qaytaradi — qolgan mahsulotlar chekda tegishlicha qolaveradi.
+   */
+  async createReturn(orderId: number, dto: CreateReturnDto, authUser: AuthUserPayload) {
+    const ownerId = getOwnerId(authUser);
+
+    return this.orderRepository.manager.transaction(async (manager) => {
+      const order = await manager.findOne(Order, {
+        where: { id: orderId, ownerId },
+        relations: ['items', 'items.product', 'items.productBatch'],
+      });
+
+      if (!order) {
+        throw new NotFoundException(`ID ${orderId} li chek topilmadi`);
+      }
+      if (order.status !== OrderStatus.COMPLETED) {
+        throw new BadRequestException(
+          `Bu chek ${order.status} holatida — qaytarish faqat yakunlangan cheklar uchun`,
+        );
+      }
+
+      const returnItems: OrderReturnItem[] = [];
+      const productUpdates = new Map<number, Product>();
+      const batchUpdates = new Map<number, ProductBatch>();
+      let totalRefund = 0;
+
+      for (const line of dto.items) {
+        const item = order.items.find((i) => i.id === line.orderItemId);
+        if (!item) {
+          throw new NotFoundException(
+            `ID ${line.orderItemId} li chek qatori shu chekka tegishli emas`,
+          );
+        }
+
+        const alreadyReturned = item.returnedQuantity ?? 0;
+        const returnable = round2(item.quantity - alreadyReturned);
+        if (line.quantity > returnable + 0.001) {
+          throw new BadRequestException(
+            `${item.product.name}: ${line.quantity} ta qaytarib bo'lmaydi — faqat ${returnable} ta qaytarish mumkin`,
+          );
+        }
+
+        // Chegirmadan keyingi haqiqiy birlik narxi bo'yicha qaytim hisoblanadi
+        const unitEffectivePrice = item.total / item.quantity;
+        const refundAmount = round2(unitEffectivePrice * line.quantity);
+        totalRefund += refundAmount;
+
+        item.returnedQuantity = round2(alreadyReturned + line.quantity);
+        await manager.save(OrderItem, item);
+
+        // 📦 Ombor: mahsulot va partiya miqdorini qaytaramiz
+        const product =
+          productUpdates.get(item.product.id) ??
+          (await manager.findOneOrFail(Product, { where: { id: item.product.id } }));
+        product.quantity += line.quantity;
+        productUpdates.set(product.id, product);
+
+        const batch =
+          batchUpdates.get(item.productBatch.id) ??
+          (await manager.findOne(ProductBatch, { where: { id: item.productBatch.id } }));
+        if (batch) {
+          batch.remaining_quantity += line.quantity;
+          batch.depleted_at = null as any;
+          batchUpdates.set(batch.id, batch);
+        }
+
+        returnItems.push(
+          manager.create(OrderReturnItem, {
+            orderItem: item,
+            product: item.product,
+            quantity: line.quantity,
+            refundAmount,
+          }),
+        );
+      }
+
+      totalRefund = round2(totalRefund);
+
+      await manager.save(Product, [...productUpdates.values()]);
+      await manager.save(ProductBatch, [...batchUpdates.values()]);
+
+      // 💰 Agar shu chekka bog'liq ochiq qarz bo'lsa — qaytarilgan summaga
+      // qarz kamaytiriladi, qolgani mijozga naqd/karta qaytariladi
+      const appliedToDebt = await this.debtsService.reduceForReturn(manager, order.id, totalRefund);
+
+      const orderReturn = manager.create(OrderReturn, {
+        ownerId,
+        order,
+        user: { id: authUser.id } as any,
+        items: returnItems,
+        totalRefundAmount: totalRefund,
+        appliedToDebt,
+        reason: dto.reason?.trim() || null,
+      });
+      const savedReturn = await manager.save(OrderReturn, orderReturn);
+
+      return {
+        id: savedReturn.id,
+        orderId: order.id,
+        totalRefundAmount: totalRefund,
+        appliedToDebt,
+        cashRefundAmount: round2(totalRefund - appliedToDebt),
+        reason: savedReturn.reason,
+        createdAt: savedReturn.createdAt,
+        items: returnItems.map((i) => ({
+          productId: i.product.id,
+          productName: (i.product as any).name,
+          quantity: i.quantity,
+          refundAmount: i.refundAmount,
+        })),
+      };
+    });
+  }
+
+  async getReturns(authUser: AuthUserPayload, page: number = 1, limit: number = 20) {
+    const ownerId = getOwnerId(authUser);
+    const skip = (page - 1) * limit;
+
+    const [returns, total] = await this.orderReturnRepository.findAndCount({
+      where: { ownerId },
+      relations: ['items', 'items.product', 'order', 'user'],
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
+    });
+
+    return {
+      data: returns.map((r) => ({
+        id: r.id,
+        orderId: r.order?.id,
+        totalRefundAmount: r.totalRefundAmount,
+        appliedToDebt: r.appliedToDebt,
+        cashRefundAmount: round2(r.totalRefundAmount - r.appliedToDebt),
+        reason: r.reason,
+        createdAt: r.createdAt,
+        user: r.user && { id: r.user.id, name: r.user.fullName },
+        items: (r.items ?? []).map((i) => ({
+          productId: i.product?.id,
+          productName: (i.product as any)?.name,
+          quantity: i.quantity,
+          refundAmount: i.refundAmount,
+        })),
+      })),
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async getOrderReturns(orderId: number, authUser: AuthUserPayload) {
+    const ownerId = getOwnerId(authUser);
+    const returns = await this.orderReturnRepository.find({
+      where: { ownerId, order: { id: orderId } },
+      relations: ['items', 'items.product', 'user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return returns.map((r) => ({
+      id: r.id,
+      totalRefundAmount: r.totalRefundAmount,
+      appliedToDebt: r.appliedToDebt,
+      cashRefundAmount: round2(r.totalRefundAmount - r.appliedToDebt),
+      reason: r.reason,
+      createdAt: r.createdAt,
+      items: (r.items ?? []).map((i) => ({
+        productId: i.product?.id,
+        productName: (i.product as any)?.name,
+        quantity: i.quantity,
+        refundAmount: i.refundAmount,
+      })),
+    }));
+  }
+
   async search(
     authUser: AuthUserPayload,
     params: OrderSearchParams,
@@ -383,6 +560,7 @@ export class OrdersService {
         purchase_price: item.purchase_price,
         discount: item.discount,
         total: item.total,
+        returnedQuantity: item.returnedQuantity ?? 0,
         product: item.product && {
           id: item.product.id,
           name: item.product.name,

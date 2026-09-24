@@ -92,6 +92,35 @@ export class DebtsService {
     return this.debtRepository.save(debt);
   }
 
+  /**
+   * Qaytarish (vozvrat) sodir bo'lganda, OrdersService.createReturn()
+   * ichida xuddi shu tranzaksiyada chaqiriladi. Agar shu chekka bog'liq
+   * OCHIQ qarz bo'lsa — qaytarilgan summaga qarz kamaytiriladi (mijozga
+   * naqd pul qaytarish o'rniga, chunki tovar hali to'liq to'lanmagan edi).
+   * Qaytaradi: qancha summa qarzni kamaytirishga sarflanganini (0 bo'lsa —
+   * qarz yo'q yoki yopilgan, demak butun summa mijozga naqd qaytariladi).
+   */
+  async reduceForReturn(
+    manager: EntityManager,
+    orderId: number,
+    refundAmount: number,
+  ): Promise<number> {
+    const debt = await manager.findOne(Debt, { where: { order: { id: orderId } } });
+    if (!debt || debt.status !== DebtStatus.OPEN) return 0;
+
+    const applied = Math.min(refundAmount, debt.remainingAmount);
+    if (applied <= 0) return 0;
+
+    debt.amount = round2(debt.amount - applied);
+    debt.remainingAmount = round2(debt.amount - debt.paidAmount);
+    if (debt.remainingAmount <= 0.05) {
+      debt.remainingAmount = 0;
+      debt.status = DebtStatus.PAID;
+    }
+    await manager.save(Debt, debt);
+
+    return applied;
+  }
   async addPayment(debtId: number, ownerId: number, dto: AddDebtPaymentDto, userId: number) {
     return this.debtRepository.manager.transaction(async (manager) => {
       const debt = await manager.findOne(Debt, {
