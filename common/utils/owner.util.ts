@@ -23,9 +23,18 @@ export interface AuthUserPayload {
   createdBy?: { id: number } | number | null;
 }
 
-// Faqat shu rollar uchun ownerId createdBy'ga ko'tariladi. Client va Admin
-// har doim o'zlarining ID'si bilan egalik qiladi.
-const DELEGATED_ROLES = new Set<string>([Role.Cashier, Role.Agent]);
+// ⚠️ Bu yerda "kim EGA hisoblanadi" ro'yxati saqlanadi — "kim xodim
+// hisoblanadi" emas. Sabab: xodim rollari kelajakda ko'payishi mumkin
+// (Cashier, Agent, ertaga Menejer, Omborchi va h.k.). Agar biz xodim
+// rollarini birma-bir sanab chiqsak, yangi rol qo'shilganda uni shu
+// ro'yxatga qo'shishni "unutib qolish" ehtimoli bor — natijada yangi rol
+// yana Admin/boshqa Client nomiga mahsulot yozib qo'yadi.
+//
+// Shuning uchun aksincha: faqat Client va Admin — mustaqil egalar.
+// RO'YXATDA BO'LMAGAN har qanday rol (hozirgisi ham, keyingisi ham)
+// avtomatik ravishda "xodim" deb hisoblanadi va ownerId createdBy'ga
+// ko'tariladi.
+const OWNER_ROLES = new Set<string>([Role.Client, Role.Admin]);
 
 export function getOwnerId(user: AuthUserPayload | undefined | null): number {
   if (!user) {
@@ -35,7 +44,9 @@ export function getOwnerId(user: AuthUserPayload | undefined | null): number {
   const role = user.role as string | undefined;
   const createdBy = user.createdBy as any;
 
-  if (role && DELEGATED_ROLES.has(role) && createdBy !== null && createdBy !== undefined) {
+  // Rol ma'lum va u EGA ro'yxatida bo'lmasa (ya'ni xodim) — va createdBy
+  // mavjud bo'lsa — ownerId uni yaratgan (do'kon egasi)ga ko'tariladi.
+  if (role && !OWNER_ROLES.has(role) && createdBy !== null && createdBy !== undefined) {
     return typeof createdBy === 'object' ? createdBy.id : createdBy;
   }
 
