@@ -20,6 +20,8 @@ import { ReducedInterface } from 'common/interface/reduced.interface';
 import { AuthUserPayload, getOwnerId } from 'common/utils/owner.util';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateReturnDto } from './dto/create-return.dto';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/entities/audit-log.entity';
 
 const round2 = (value: number): number => Math.round(value * 100) / 100;
 
@@ -30,6 +32,7 @@ export class OrdersService {
     @InjectRepository(OrderReturn) private readonly orderReturnRepository: Repository<OrderReturn>,
     private readonly statisticsService: StatisticsService,
     private readonly debtsService: DebtsService,
+    private readonly auditService: AuditService,
     @InjectQueue('sales-queue') private readonly saleQueue: Queue,
   ) {}
 
@@ -305,6 +308,22 @@ export class OrdersService {
       order.cancelledBy = authUser.id;
       await manager.save(Order, order);
 
+      await this.auditService.log(
+        {
+          ownerId,
+          userId: authUser.id,
+          userName: authUser.username ?? null,
+          action: AuditAction.CANCEL,
+          entityType: 'Order',
+          entityId: order.id,
+          entityLabel: `Chek #${order.id}`,
+          description: reason
+            ? `Chek #${order.id} bekor qilindi — sababi: ${reason}`
+            : `Chek #${order.id} bekor qilindi`,
+        },
+        manager,
+      );
+
       return {
         message: 'Chek bekor qilindi va mahsulotlar omborga qaytarildi',
         order: this.toResponse(order),
@@ -409,6 +428,21 @@ export class OrdersService {
         reason: dto.reason?.trim() || null,
       });
       const savedReturn = await manager.save(OrderReturn, orderReturn);
+
+      await this.auditService.log(
+        {
+          ownerId,
+          userId: authUser.id,
+          userName: authUser.username ?? null,
+          action: AuditAction.RETURN,
+          entityType: 'Order',
+          entityId: order.id,
+          entityLabel: `Chek #${order.id}`,
+          description: `Chek #${order.id}dan ${totalRefund} so'm qiymatida qaytarish qilindi` +
+            (dto.reason ? ` — sababi: ${dto.reason}` : ''),
+        },
+        manager,
+      );
 
       return {
         id: savedReturn.id,

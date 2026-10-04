@@ -22,6 +22,7 @@ import { TelegramModule } from './telegram/telegram.module';
 import { ExpenseModule } from './expense/expense.module';
 import { TasksModule } from './schedule/tasks.module';
 import { PaymentsModule } from './payments/payments.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { PaymentsModule } from './payments/payments.module';
     OrdersModule,
     CustomersModule,
     DebtsModule,
+    AuditModule,
     StatisticsModule,
     NotificationsModule,
     BullModule.forRoot({

@@ -4,10 +4,12 @@ import { AuthService } from './auth.service';
 import { UserModule } from 'src/meta-user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AuditModule } from 'src/audit/audit.module';
 
 @Module({
   imports: [
     UserModule,
+    AuditModule,
     JwtModule.registerAsync({
       inject: [ConfigService], // ConfigService ni inject qilamiz
       useFactory: (configService: ConfigService) => ({

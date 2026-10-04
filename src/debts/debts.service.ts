@@ -7,6 +7,8 @@ import { Customer } from 'src/customers/entities/customer.entity';
 import { DebtStatus } from 'common/enums/debt-status.enum';
 import { AddDebtPaymentDto, CreateManualDebtDto } from './dto/debt.dto';
 import { PaginationResponse } from 'common/interface/pagination.interface';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/entities/audit-log.entity';
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
@@ -15,6 +17,7 @@ export class DebtsService {
   constructor(
     @InjectRepository(Debt) private readonly debtRepository: Repository<Debt>,
     @InjectRepository(Customer) private readonly customerRepository: Repository<Customer>,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -121,7 +124,7 @@ export class DebtsService {
 
     return applied;
   }
-  async addPayment(debtId: number, ownerId: number, dto: AddDebtPaymentDto, userId: number) {
+  async addPayment(debtId: number, ownerId: number, dto: AddDebtPaymentDto, userId: number, userName?: string) {
     return this.debtRepository.manager.transaction(async (manager) => {
       const debt = await manager.findOne(Debt, {
         where: { id: debtId, ownerId },
@@ -155,6 +158,20 @@ export class DebtsService {
         debt.status = DebtStatus.PAID;
       }
       await manager.save(Debt, debt);
+
+      await this.auditService.log(
+        {
+          ownerId,
+          userId,
+          userName: userName ?? null,
+          action: AuditAction.PAYMENT,
+          entityType: 'Debt',
+          entityId: debt.id,
+          entityLabel: debt.customer?.fullName ?? `Qarz #${debt.id}`,
+          description: `${debt.customer?.fullName ?? 'Mijoz'}dan ${dto.amount} so'm to'lov qabul qilindi (${dto.paymentType})`,
+        },
+        manager,
+      );
 
       return debt;
     });

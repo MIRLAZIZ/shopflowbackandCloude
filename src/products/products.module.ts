@@ -6,9 +6,10 @@ import { ProductsController } from './products.controller';
 import { ProductBatch } from './entities/product-batch.entity';
 import { OrderItem } from 'src/orders/entities/order-item.entity';
 import { Unit } from 'src/units/entities/unit.entity';
+import { AuditModule } from 'src/audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, ProductBatch, Unit, OrderItem])],
+  imports: [TypeOrmModule.forFeature([Product, ProductBatch, Unit, OrderItem]), AuditModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService]

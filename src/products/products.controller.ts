@@ -40,7 +40,7 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @CurrentUser() user: AuthUserPayload
   ) {
-    return this.productsService.create(createProductDto, getOwnerId(user));
+    return this.productsService.create(createProductDto, getOwnerId(user), user);
   }
 
 
@@ -69,7 +69,7 @@ export class ProductsController {
     @Body() updateProductDto: UpdateProductDto,
     @CurrentUser() user: AuthUserPayload
   ) {
-    return this.productsService.update(id, getOwnerId(user), updateProductDto);
+    return this.productsService.update(id, getOwnerId(user), updateProductDto, user);
   }
 
   /**
@@ -133,7 +133,7 @@ export class ProductsController {
   @Delete(':id')
   @Roles(Role.Client)
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUserPayload) {
-    return this.productsService.delete(id, getOwnerId(user));
+    return this.productsService.delete(id, getOwnerId(user), user);
   }
 
 

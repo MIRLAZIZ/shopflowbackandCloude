@@ -22,6 +22,9 @@ import { OrderItem } from 'src/orders/entities/order-item.entity';
 import { DeepPartial, Not } from 'typeorm';
 import { BatchStatus } from 'common/enums/batch-status.enum';
 import { SearchProductDto } from './dto/search.dto';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/entities/audit-log.entity';
+import { AuthUserPayload } from 'common/utils/owner.util';
 
 
 @Injectable()
@@ -40,10 +43,12 @@ export class ProductsService {
 
     @InjectRepository(OrderItem)
     private orderItemRepository: Repository<OrderItem>,
+
+    private readonly auditService: AuditService,
   ) { }
 
   //* Mahsulot yaratish
-  async create(createData: CreateProductDto, userId: number) {
+  async create(createData: CreateProductDto, userId: number, actor?: AuthUserPayload) {
     try {
 
       await this.dataSource.manager.transaction(async (manager) => {
@@ -131,6 +136,20 @@ export class ProductsService {
         });
 
         await manager.save(productBatch);
+
+        await this.auditService.log(
+          {
+            ownerId: userId,
+            userId: actor?.id ?? userId,
+            userName: actor?.username ?? null,
+            action: AuditAction.CREATE,
+            entityType: 'Product',
+            entityId: savedProduct.id,
+            entityLabel: savedProduct.name,
+            description: `"${savedProduct.name}" mahsuloti yaratildi`,
+          },
+          manager,
+        );
       });
 
       return { message: 'Mahsulot muvaffaqiyatli yaratildi' };
@@ -175,7 +194,7 @@ export class ProductsService {
   }
 
 
-  async update(id: number, userId: number, dto: UpdateProductDto) {
+  async update(id: number, userId: number, dto: UpdateProductDto, actor?: AuthUserPayload) {
     await this.dataSource.transaction(async (manager) => {
 
       // ═══════════════════════════════════════════════
@@ -188,6 +207,15 @@ export class ProductsService {
         },
         relations: ['unit', 'category'],
       });
+
+      // 📝 Audit uchun — o'zgarishdan OLDINGI holat (narx/nom/status kabi
+      // muhim maydonlar bo'yicha)
+      const beforeSnapshot = {
+        name: product.name,
+        status: product.status,
+        max_quantity_notification: product.max_quantity_notification,
+        selling_price: (product as any).selling_price,
+      };
 
       // ═══════════════════════════════════════════════
       // BATCHES
@@ -291,6 +319,31 @@ export class ProductsService {
         pendingBatch && manager.save(pendingBatch),
         manager.save(product),
       ]);
+
+      // 📝 Audit — faqat haqiqatan o'zgargan maydonlar yoziladi
+      const afterSnapshot = {
+        name: product.name,
+        status: product.status,
+        max_quantity_notification: product.max_quantity_notification,
+        selling_price: (product as any).selling_price,
+      };
+      const changes = this.auditService.diff(beforeSnapshot, afterSnapshot);
+      if (changes) {
+        await this.auditService.log(
+          {
+            ownerId: userId,
+            userId: actor?.id ?? userId,
+            userName: actor?.username ?? null,
+            action: AuditAction.UPDATE,
+            entityType: 'Product',
+            entityId: product.id,
+            entityLabel: product.name,
+            changes,
+            description: `"${product.name}" mahsuloti yangilandi`,
+          },
+          manager,
+        );
+      }
     });
 
     return {
@@ -396,7 +449,7 @@ export class ProductsService {
   }
 
 
-  async delete(productId: number, userId: number) {
+  async delete(productId: number, userId: number, actor?: AuthUserPayload) {
     try {
       const product = await this.productRepository.findOne({
         where: { id: productId, user: { id: userId } },
@@ -408,7 +461,19 @@ export class ProductsService {
         );
       }
 
+      const productName = product.name;
       await this.productRepository.remove(product);
+
+      await this.auditService.log({
+        ownerId: userId,
+        userId: actor?.id ?? userId,
+        userName: actor?.username ?? null,
+        action: AuditAction.DELETE,
+        entityType: 'Product',
+        entityId: productId,
+        entityLabel: productName,
+        description: `"${productName}" mahsuloti o'chirildi`,
+      });
 
       return { message: "Mahsulot muvaffaqiyatli o'chirildi" };
 

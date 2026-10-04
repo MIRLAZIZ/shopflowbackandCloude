@@ -60,6 +60,6 @@ export class DebtsController {
     @Body() dto: AddDebtPaymentDto,
     @CurrentUser() user: AuthUserPayload,
   ) {
-    return this.debtsService.addPayment(id, getOwnerId(user), dto, user.id);
+    return this.debtsService.addPayment(id, getOwnerId(user), dto, user.id, user.username);
   }
 }

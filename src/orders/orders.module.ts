@@ -11,6 +11,7 @@ import { Product } from 'src/products/entities/product.entity';
 import { ProductsModule } from 'src/products/products.module';
 import { StatisticsModule } from 'src/statistics/statistics.module';
 import { DebtsModule } from 'src/debts/debts.module';
+import { AuditModule } from 'src/audit/audit.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { DebtsModule } from 'src/debts/debts.module';
     ProductsModule,
     StatisticsModule,
     DebtsModule,
+    AuditModule,
     // Nom tarixiy sabablarga ko'ra 'sales-queue' — notifications moduli
     // shu nom bilan tinglaydi (kam qolgan mahsulot bildirishnomasi)
     BullModule.registerQueue({ name: 'sales-queue' }),

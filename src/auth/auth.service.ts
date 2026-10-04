@@ -5,11 +5,18 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/meta-user/user.entity';
 import { SubscriptionStatus } from 'common/enums/subscription-status.enum';
+import { AuditService } from 'src/audit/audit.service';
+import { AuditAction } from 'src/audit/entities/audit-log.entity';
+import { getOwnerId } from 'common/utils/owner.util';
 
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly userService: UserService, private readonly jwtService: JwtService) {}
+    constructor(
+        private readonly userService: UserService,
+        private readonly jwtService: JwtService,
+        private readonly auditService: AuditService,
+    ) {}
 
 
 async login(data: LoginDto): Promise<{ user: Partial<User>; token: string, roleOptions?:any }> {
@@ -46,6 +53,18 @@ async login(data: LoginDto): Promise<{ user: Partial<User>; token: string, roleO
   const token = this.jwtService.sign(payload);
 
   const { password, expiryDate, adminNote, balance, telegramGroupId, telegramId, manualExtensionCount, ...result } = user;
+
+  const ownerId = getOwnerId({ id: user.id, role: user.role, createdBy: user.createdBy ? { id: user.createdBy.id } : null });
+  await this.auditService.log({
+    ownerId,
+    userId: user.id,
+    userName: user.username,
+    action: AuditAction.LOGIN,
+    entityType: 'User',
+    entityId: user.id,
+    entityLabel: user.username,
+    description: `${user.username} tizimga kirdi`,
+  });
 
   return { user: result, token, };
 }
