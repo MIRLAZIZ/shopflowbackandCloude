@@ -23,6 +23,7 @@ import { ExpenseModule } from './expense/expense.module';
 import { TasksModule } from './schedule/tasks.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AuditModule } from './audit/audit.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AuditModule } from './audit/audit.module';
     CustomersModule,
     DebtsModule,
     AuditModule,
+    InventoryModule,
     StatisticsModule,
     NotificationsModule,
     BullModule.forRoot({
