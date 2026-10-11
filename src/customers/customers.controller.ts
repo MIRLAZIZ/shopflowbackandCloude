@@ -36,6 +36,12 @@ export class CustomersController {
     return this.customersService.findAll(getOwnerId(user), page ? Number(page) : 1, 20, search);
   }
 
+  @Get(':id/debts')
+  @Roles(Role.Client, Role.Cashier)
+  getDebtHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUserPayload) {
+    return this.customersService.getDebtHistory(id, getOwnerId(user));
+  }
+
   @Get(':id')
   @Roles(Role.Client, Role.Cashier)
   findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUserPayload) {

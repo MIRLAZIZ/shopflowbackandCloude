@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, Not, Repository } from 'typeorm';
+import { Order } from 'src/orders/entities/order.entity';
 import { Debt } from './entities/debt.entity';
 import { DebtPayment } from './entities/debt-payment.entity';
 import { Customer } from 'src/customers/entities/customer.entity';
@@ -80,10 +81,30 @@ export class DebtsService {
       throw new NotFoundException(`ID ${dto.customerId} li mijoz topilmadi`);
     }
 
+    // Ixtiyoriy: mavjud chekka biriktirish
+    let order: Order | null = null;
+    if (dto.orderId) {
+      order = await this.debtRepository.manager.findOne(Order, {
+        where: { id: dto.orderId, ownerId },
+      });
+      if (!order) {
+        throw new NotFoundException(`ID ${dto.orderId} li chek topilmadi`);
+      }
+      if (order.customerId && order.customerId !== customer.id) {
+        throw new BadRequestException("Bu chek boshqa mijozga tegishli");
+      }
+      const alreadyLinked = await this.debtRepository.exists({
+        where: { order: { id: order.id }, status: Not(DebtStatus.CANCELLED) },
+      });
+      if (alreadyLinked) {
+        throw new BadRequestException('Bu chekka qarz allaqachon biriktirilgan');
+      }
+    }
+
     const debt = this.debtRepository.create({
       ownerId,
       customer,
-      order: null,
+      order,
       amount: round2(dto.amount),
       paidAmount: 0,
       remainingAmount: round2(dto.amount),

@@ -581,6 +581,7 @@ export class ProductsService {
 
     const query = this.productRepository
       .createQueryBuilder('p')
+      .leftJoinAndSelect('p.unit', 'unit')
       .where('p.user_id = :userId', { userId });
 
     if (barcode?.trim()) {

@@ -107,6 +107,72 @@ export class CustomersService {
     };
   }
 
+  /**
+   * Mijozning qarz tarixi: har bir qarz, unga qilingan to'lovlar va qarz
+   * bog'langan chek (nima olgani — mahsulotlar, miqdori, birligi bilan).
+   */
+  async getDebtHistory(id: number, ownerId: number) {
+    const customer = await this.findOneEntity(id, ownerId);
+
+    const debts = await this.debtRepository.find({
+      where: { ownerId, customer: { id: customer.id } },
+      relations: ['order', 'order.items', 'order.items.product', 'order.items.product.unit', 'payments'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const round2 = (v: number) => Math.round(v * 100) / 100;
+    const active = debts.filter(d => d.status !== DebtStatus.CANCELLED);
+
+    return {
+      customer: { id: customer.id, fullName: customer.fullName, phone: customer.phone },
+      summary: {
+        totalDebt: round2(active.reduce((sum, d) => sum + d.amount, 0)),
+        totalPaid: round2(active.reduce((sum, d) => sum + d.paidAmount, 0)),
+        totalRemaining: round2(
+          debts.filter(d => d.status === DebtStatus.OPEN).reduce((sum, d) => sum + d.remainingAmount, 0),
+        ),
+      },
+      debts: debts.map(d => ({
+        id: d.id,
+        amount: d.amount,
+        paidAmount: d.paidAmount,
+        remainingAmount: d.remainingAmount,
+        status: d.status,
+        dueDate: d.dueDate,
+        note: d.note,
+        createdAt: d.createdAt,
+        order: d.order
+          ? {
+              id: d.order.id,
+              createdAt: d.order.createdAt,
+              total: d.order.total,
+              paidAmount: d.order.paidAmount,
+              debtAmount: d.order.debtAmount,
+              status: d.order.status,
+              items: (d.order.items ?? []).map(i => ({
+                productName: i.product?.name ?? '-',
+                unit: (i.product as any)?.unit?.label ?? null,
+                quantity: i.quantity,
+                price: i.selling_price,
+                discount: i.discount,
+                total: i.total,
+              })),
+            }
+          : null,
+        payments: (d.payments ?? [])
+          .slice()
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(pmt => ({
+            id: pmt.id,
+            amount: pmt.amount,
+            paymentType: pmt.paymentType,
+            note: pmt.note,
+            createdAt: pmt.createdAt,
+          })),
+      })),
+    };
+  }
+
   private async getOutstandingDebt(customerId: number): Promise<number> {
     const { total } = await this.debtRepository
       .createQueryBuilder('d')

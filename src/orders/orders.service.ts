@@ -226,7 +226,7 @@ export class OrdersService {
 
     const [orders, total] = await this.orderRepository.findAndCount({
       where: { ownerId },
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'items.product.unit', 'user'],
       order: { id: 'DESC' },
       skip,
       take: limit,
@@ -247,7 +247,7 @@ export class OrdersService {
     const ownerId = getOwnerId(authUser);
     const order = await this.orderRepository.findOne({
       where: { id, ownerId },
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'items.product.unit', 'user'],
     });
 
     if (!order) {
@@ -499,7 +499,7 @@ export class OrdersService {
     const ownerId = getOwnerId(authUser);
     const returns = await this.orderReturnRepository.find({
       where: { ownerId, order: { id: orderId } },
-      relations: ['items', 'items.product', 'user'],
+      relations: ['items', 'items.product', 'items.product.unit', 'user'],
       order: { createdAt: 'DESC' },
     });
 
@@ -532,6 +532,7 @@ export class OrdersService {
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('product.unit', 'unit')
       .leftJoinAndSelect('order.user', 'user')
       .where('order.owner_id = :ownerId', { ownerId });
 
@@ -598,6 +599,8 @@ export class OrdersService {
         product: item.product && {
           id: item.product.id,
           name: item.product.name,
+          // O'lchov birligi (kg, dona, litr...) — chek va hisobotlarda ko'rsatiladi
+          unit: (item.product as any).unit?.label ?? null,
         },
       })),
       user: order.user && {

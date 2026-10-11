@@ -34,4 +34,10 @@ export class CreateManualDebtDto {
 
   @IsOptional()
   dueDate?: string;
+
+  // Qarzni mavjud chekka biriktirish (nima olgani chekda ko'rinadi)
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  orderId?: number;
 }
