@@ -468,7 +468,7 @@ export class OrdersService {
 
     const [returns, total] = await this.orderReturnRepository.findAndCount({
       where: { ownerId },
-      relations: ['items', 'items.product', 'order', 'user'],
+      relations: ['items', 'items.product', 'items.product.unit', 'order', 'user'],
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -487,6 +487,7 @@ export class OrdersService {
         items: (r.items ?? []).map((i) => ({
           productId: i.product?.id,
           productName: (i.product as any)?.name,
+          unit: (i.product as any)?.unit?.label ?? null,
           quantity: i.quantity,
           refundAmount: i.refundAmount,
         })),
@@ -513,6 +514,7 @@ export class OrdersService {
       items: (r.items ?? []).map((i) => ({
         productId: i.product?.id,
         productName: (i.product as any)?.name,
+        unit: (i.product as any)?.unit?.label ?? null,
         quantity: i.quantity,
         refundAmount: i.refundAmount,
       })),
