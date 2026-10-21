@@ -6,6 +6,7 @@ import { StatisticsGateway } from './statistics.geteway';
 import { Order } from 'src/orders/entities/order.entity';
 import { Debt } from 'src/debts/entities/debt.entity';
 import { Product } from 'src/products/entities/product.entity';
+import { Expense } from 'src/expense/entities/expense.entity';
 import { OrderStatus } from 'common/enums/order-status.enum';
 import { DebtStatus } from 'common/enums/debt-status.enum';
 import { StockFilter } from 'common/enums/product-stock.enum';
@@ -24,6 +25,8 @@ export class StatisticsService {
     private debtRepo: Repository<Debt>,
     @InjectRepository(Product)
     private productRepo: Repository<Product>,
+    @InjectRepository(Expense)
+    private expenseRepo: Repository<Expense>,
 
     @Inject(forwardRef(() => StatisticsGateway))
     private statisticsGateway: StatisticsGateway
@@ -101,6 +104,22 @@ export class StatisticsService {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
+    // Xarajatlar (xarajat sanasi bo'yicha, mahalliy sana) — sof foyda uchun
+    const localDate = (d: Date) => {
+      const p = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    };
+    const { expenseSum } = await this.expenseRepo
+      .createQueryBuilder('e')
+      .select('COALESCE(SUM(e.amount), 0)', 'expenseSum')
+      .where('e.ownerId = :ownerId', { ownerId })
+      .andWhere('e.expenseDate BETWEEN :from AND :to', {
+        from: localDate(dateFrom),
+        to: localDate(dateTo),
+      })
+      .getRawOne();
+    const totalExpenses = round2(Number(expenseSum) || 0);
+
     // Qarzdorlik (davr bilan bog'liq emas — joriy holat)
     const { sum: totalOutstandingDebt } = await this.debtRepo
       .createQueryBuilder('d')
@@ -123,6 +142,9 @@ export class StatisticsService {
       dateTo: dateTo.toISOString(),
       totalRevenue,
       totalProfit,
+      totalExpenses,
+      // Sof foyda = sotuvdan foyda − xarajatlar
+      netProfit: round2(totalProfit - totalExpenses),
       totalDiscount,
       totalOrders,
       averageOrderValue,
