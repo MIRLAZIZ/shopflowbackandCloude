@@ -205,7 +205,7 @@ export class ProductsService {
           id,
           user: { id: userId },
         },
-        relations: ['unit', 'category'],
+        relations: ['unit'],
       });
 
       // 📝 Audit uchun — o'zgarishdan OLDINGI holat (narx/nom/status kabi
@@ -547,7 +547,7 @@ export class ProductsService {
   async findOne(productId: number, userId: number) {
     const product = await this.productRepository.findOne({
       where: { id: productId, user: { id: userId } },
-      relations: ['unit', 'category'],
+      relations: ['unit'],
     });
 
     if (!product) {

@@ -35,7 +35,7 @@ export class AuditLog {
 
   // Username ko'chirib saqlanadi — kelajakda user o'chirilsa/nomi
   // o'zgarsa ham jurnal o'qilishi buzilmasligi uchun
-  @Column({ name: 'user_name', nullable: true })
+  @Column({ name: 'user_name', nullable: true, type: 'varchar' })
   userName!: string | null;
 
   @Column({ type: 'enum', enum: AuditAction })
@@ -49,7 +49,7 @@ export class AuditLog {
   entityId!: number | null;
 
   // Inson o'qiydigan nom (masalan mahsulot nomi, chek raqami)
-  @Column({ name: 'entity_label', nullable: true })
+  @Column({ name: 'entity_label', nullable: true, type: 'varchar' })
   entityLabel!: string | null;
 
   // UPDATE amali uchun: { fieldName: { old, new } }
