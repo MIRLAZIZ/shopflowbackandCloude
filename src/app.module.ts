@@ -20,6 +20,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { TelegramModule } from './telegram/telegram.module';
 // import { CategoriesModule } from './categories/categories.module';
 import { ExpenseModule } from './expense/expense.module';
+import { FinanceModule } from './finance/finance.module';
 import { TasksModule } from './schedule/tasks.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AuditModule } from './audit/audit.module';
@@ -62,6 +63,7 @@ import { InventoryModule } from './inventory/inventory.module';
     }),
     TelegramModule,
     ExpenseModule,
+    FinanceModule,
     TasksModule,
     PaymentsModule
 

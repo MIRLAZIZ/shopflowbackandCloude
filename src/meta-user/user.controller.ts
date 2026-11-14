@@ -15,7 +15,7 @@ export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Post()
-  @Roles(Role.Admin, Role.Agent, Role.Client)
+  @Roles(Role.Admin, Role.Client)
   create(@Body() data: UserDto, @Req() req) {
     // data._role = req.user.role
     // console.log(data, req.user.role);
@@ -26,7 +26,7 @@ export class UserController {
   }
 
   @Get()
-  @Roles(Role.Admin, Role.Agent, Role.Client)
+  @Roles(Role.Admin, Role.Manager, Role.Client)
   findAll(@CurrentUser() user:User) {
 
     const role = user.role
@@ -38,7 +38,7 @@ export class UserController {
 
 
   @Get(':id')
-  @Roles(Role.Admin, Role.Agent, Role.Client)
+  @Roles(Role.Admin, Role.Manager, Role.Client)
   findOne(@Param('id') id: string, @Req() req) {
    
     

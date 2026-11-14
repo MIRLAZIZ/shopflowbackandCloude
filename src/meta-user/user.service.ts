@@ -48,35 +48,45 @@ export class UserService implements OnModuleInit {
     return bcrypt.hash(password, this.PASSWORD_SALT_ROUNDS);
   }
 
-  private validateRolePermission(
-    currentUserRole: Role,
-    targetRole: Role
-  ): void {
-    const permissions = {
-      [Role.Admin]: [Role.Admin, Role.Agent, Role.Client],
-      [Role.Agent]: [Role.Client],
-      [Role.Client]: [Role.Cashier],
-    };
+  
 
-    const allowedRoles = permissions[currentUserRole];
+private validateRolePermission(
+  currentUserRole: Role,
+  targetRole: Role
+): void {
+  const permissions: Record<Role, Role[]> = {
+    [Role.Admin]: [Role.Client],
+    [Role.Client]: [Role.Manager, Role.Cashier],
+    [Role.Manager]: [Role.Cashier],
+    [Role.Cashier]: [],
+  };
 
-    if (!allowedRoles || !allowedRoles.includes(targetRole)) {
-      const messages = {
-        [Role.Admin]: "Admin Cashier yaratolmaydi",
-        [Role.Agent]: "Agent faqat Client yaratishi mumkin",
-        [Role.Client]: "Client faqat Cashier yaratishi mumkin",
-      };
-      throw new ForbiddenException(
-        messages[currentUserRole] || "Sizda user yaratish huquqi yo'q"
-      );
-    }
+  const messages: Partial<Record<Role, string>> = {
+    [Role.Admin]: 'Admin faqat Client yarata oladi',
+    [Role.Client]: 'Client faqat Manager yoki Cashier yarata oladi',
+    [Role.Manager]: 'Manager faqat Cashier yarata oladi',
+    [Role.Cashier]: 'Sizda user yaratish huquqi yo‘q',
+  };
+
+  const allowedRoles = permissions[currentUserRole];
+
+  if (!allowedRoles.includes(targetRole)) {
+    throw new ForbiddenException(
+      messages[currentUserRole] || 'Sizda user yaratish huquqi yo‘q'
+    );
   }
+}
+
+
+
+
+  
 
   private canAccessUser(user: User, currentUser: User): boolean {
     if (user.id === currentUser.id) return true;
     if (currentUser.role === Role.Admin) return true;
     if (
-      (currentUser.role === Role.Agent || currentUser.role === Role.Client) &&
+      ( currentUser.role === Role.Client) &&
       user.createdBy?.id === currentUser.id
     ) {
       return true;
@@ -237,7 +247,6 @@ async expireOverdueSubscriptions(): Promise<User[]> {
 
     const roleFilters = {
       [Role.Admin]: { role: Role.Client },
-      [Role.Agent]: { role: Role.Client, createdBy: { id: userId } },
       [Role.Client]: { role: Role.Cashier, createdBy: { id: userId } },
     };
 
@@ -296,7 +305,7 @@ async expireOverdueSubscriptions(): Promise<User[]> {
       throw new NotFoundException('Foydalanuvchi topilmadi');
     }
 
-    if ([Role.Agent, Role.Cashier].includes(currentUser.role)) {
+    if ([Role.Manager, Role.Cashier].includes(currentUser.role)) {
       throw new ForbiddenException("Sizda foydalanuvchi o'chirish huquqi yo'q");
     }
 
