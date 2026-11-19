@@ -1,10 +1,10 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, ConflictException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, FindOptionsWhere, Not } from 'typeorm';
 import { User } from './user.entity';
 import UserDto from './dto/user.dto';
 import * as bcrypt from 'bcrypt';
-import { instanceToPlain } from 'class-transformer';
+import { instanceToPlain, plainToInstance } from 'class-transformer';
 import ChangePasswordDto from './dto/password.dto';
 import dayjs from 'dayjs';
 import { Role } from 'common/enums/role.enum';
@@ -48,45 +48,45 @@ export class UserService implements OnModuleInit {
     return bcrypt.hash(password, this.PASSWORD_SALT_ROUNDS);
   }
 
-  
 
-private validateRolePermission(
-  currentUserRole: Role,
-  targetRole: Role
-): void {
-  const permissions: Record<Role, Role[]> = {
-    [Role.Admin]: [Role.Client],
-    [Role.Client]: [Role.Manager, Role.Cashier],
-    [Role.Manager]: [Role.Cashier],
-    [Role.Cashier]: [],
-  };
 
-  const messages: Partial<Record<Role, string>> = {
-    [Role.Admin]: 'Admin faqat Client yarata oladi',
-    [Role.Client]: 'Client faqat Manager yoki Cashier yarata oladi',
-    [Role.Manager]: 'Manager faqat Cashier yarata oladi',
-    [Role.Cashier]: 'Sizda user yaratish huquqi yo‘q',
-  };
+  private validateRolePermission(
+    currentUserRole: Role,
+    targetRole: Role
+  ): void {
+    const permissions: Record<Role, Role[]> = {
+      [Role.Admin]: [Role.Client],
+      [Role.Client]: [Role.Manager, Role.Cashier],
+      [Role.Manager]: [Role.Cashier],
+      [Role.Cashier]: [],
+    };
 
-  const allowedRoles = permissions[currentUserRole];
+    const messages: Partial<Record<Role, string>> = {
+      [Role.Admin]: 'Admin faqat Client yarata oladi',
+      [Role.Client]: 'Client faqat Manager yoki Cashier yarata oladi',
+      [Role.Manager]: 'Manager faqat Cashier yarata oladi',
+      [Role.Cashier]: 'Sizda xodim yaratish huquqi yo‘q',
+    };
 
-  if (!allowedRoles.includes(targetRole)) {
-    throw new ForbiddenException(
-      messages[currentUserRole] || 'Sizda user yaratish huquqi yo‘q'
-    );
+    const allowedRoles = permissions[currentUserRole];
+
+    if (!allowedRoles.includes(targetRole)) {
+      throw new ForbiddenException(
+        messages[currentUserRole] || 'Sizda user yaratish huquqi yo‘q'
+      );
+    }
   }
-}
 
 
 
 
-  
+
 
   private canAccessUser(user: User, currentUser: User): boolean {
     if (user.id === currentUser.id) return true;
     if (currentUser.role === Role.Admin) return true;
     if (
-      ( currentUser.role === Role.Client) &&
+      (currentUser.role === Role.Client) &&
       user.createdBy?.id === currentUser.id
     ) {
       return true;
@@ -95,33 +95,82 @@ private validateRolePermission(
   }
 
   // 🔹 CRUD operatsiyalar
+  // async create(
+  //   data: UserDto,
+  //   createdById: number,
+  //   currentUserRole: Role
+  // ): Promise<User> {
+  //   this.validateRolePermission(currentUserRole, data.role);
+
+  //   const hashPassword = await this.hashPassword(data.password);
+
+  //   // Faqat Client (do'kon egasi) roli uchun trial beriladi.
+  //   // Agent/Cashier kabi rollar do'kon egasining obunasiga bog'liq bo'lgani uchun
+  //   // ularga alohida trial kerak emas.
+  //   const isSubscribable = data.role === Role.Client;
+
+  //   const user = this.userRepository.create({
+  //     ...data,
+  //     password: hashPassword,
+  //     subscriptionStatus: isSubscribable ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
+  //     expiryDate: isSubscribable
+  //       ? this.generateTrialExpiry()
+  //       : dayjs().add(100, 'year').toDate(),
+  //     createdBy: createdById ? ({ id: createdById } as User) : undefined
+  //   });
+
+  //   const savedUser = await this.userRepository.save(user);
+
+  //   return instanceToPlain(savedUser) as User;
+  // }
+
+
   async create(
     data: UserDto,
     createdById: number,
-    currentUserRole: Role
+    currentUserRole: Role,
+    currentUserOwnerId: number,
   ): Promise<User> {
     this.validateRolePermission(currentUserRole, data.role);
 
     const hashPassword = await this.hashPassword(data.password);
 
-    // Faqat Client (do'kon egasi) roli uchun trial beriladi.
-    // Agent/Cashier kabi rollar do'kon egasining obunasiga bog'liq bo'lgani uchun
-    // ularga alohida trial kerak emas.
-    const isSubscribable = data.role === Role.Client;
+    const isClient = data.role === Role.Client;
 
     const user = this.userRepository.create({
       ...data,
       password: hashPassword,
-      subscriptionStatus: isSubscribable ? SubscriptionStatus.TRIAL : SubscriptionStatus.ACTIVE,
-      expiryDate: isSubscribable
+
+      ownerId: currentUserOwnerId,
+
+      subscriptionStatus: isClient
+        ? SubscriptionStatus.TRIAL
+        : SubscriptionStatus.ACTIVE,
+
+      expiryDate: isClient
         ? this.generateTrialExpiry()
         : dayjs().add(100, 'year').toDate(),
-      createdBy: createdById ? ({ id: createdById } as User) : undefined
+
+      createdBy: createdById
+        ? ({ id: createdById } as User)
+        : undefined,
     });
 
     const savedUser = await this.userRepository.save(user);
+
+    // Client o'ziga o'zi owner hisoblanadi
+    if (isClient) {
+      savedUser.ownerId = savedUser.id;
+      await this.userRepository.save(savedUser);
+    }
+
     return instanceToPlain(savedUser) as User;
   }
+
+
+
+
+
 
   // 🔹 Payment muvaffaqiyatli bo'lgandan keyin chaqiriladi.
   // Agar foydalanuvchining amaldagi muddati (Trial yoki Active)
@@ -182,101 +231,129 @@ private validateRolePermission(
   }
 
   // 🔹 Admin qo'lda qarzga vaqt qo'shganda chaqiriladi
-async extendManually(
-   subscriptionUserId: number,
+  async extendManually(
+    subscriptionUserId: number,
     userId: number,
-   data:subscriptionManuallyDto
-): Promise<User> {
-  const [subscriptionUser, adminUser] = await Promise.all([
-  this.userRepository.findOneOrFail({
-    where: { id: subscriptionUserId },
-  }),
-  this.userRepository.findOneOrFail({
-    where: { id: userId },
-  }),
-]);
+    data: subscriptionManuallyDto
+  ): Promise<User> {
+    const [subscriptionUser, adminUser] = await Promise.all([
+      this.userRepository.findOneOrFail({
+        where: { id: subscriptionUserId },
+      }),
+      this.userRepository.findOneOrFail({
+        where: { id: userId },
+      }),
+    ]);
 
 
-if(adminUser.role !== Role.Admin) {
-  throw new ForbiddenException('Sizda foydalanuvchiga muddat qo\'shish huquqi yo\'q');
-}
-  const now = dayjs();
+    if (adminUser.role !== Role.Admin) {
+      throw new ForbiddenException('Sizda foydalanuvchiga muddat qo\'shish huquqi yo\'q');
+    }
+    const now = dayjs();
 
-  // Obuna tugamagan bo'lsa eski muddatdan davom ettiramiz,
-  // tugagan bo'lsa bugungi kundan boshlaymiz.
-  const baseDate = dayjs(subscriptionUser.expiryDate).isAfter(now)
-    ? dayjs(subscriptionUser.expiryDate)
-    : now;
+    // Obuna tugamagan bo'lsa eski muddatdan davom ettiramiz,
+    // tugagan bo'lsa bugungi kundan boshlaymiz.
+    const baseDate = dayjs(subscriptionUser.expiryDate).isAfter(now)
+      ? dayjs(subscriptionUser.expiryDate)
+      : now;
 
-  subscriptionUser.expiryDate = baseDate.add(data.days, 'day').toDate();
-  subscriptionUser.manualExtensionCount += 1;
-  subscriptionUser.balance = Number(subscriptionUser.balance) - Number(data.debtAmount);
-  subscriptionUser.adminNote = data.note?.trim() || '';
-  subscriptionUser.subscriptionStatus = SubscriptionStatus.ACTIVE;
+    subscriptionUser.expiryDate = baseDate.add(data.days, 'day').toDate();
+    subscriptionUser.manualExtensionCount += 1;
+    subscriptionUser.balance = Number(subscriptionUser.balance) - Number(data.debtAmount);
+    subscriptionUser.adminNote = data.note?.trim() || '';
+    subscriptionUser.subscriptionStatus = SubscriptionStatus.ACTIVE;
 
-  return await this.userRepository.save(subscriptionUser);
-}
+    return await this.userRepository.save(subscriptionUser);
+  }
 
   // 🔹 Har kuni cron job orqali chaqiriladi (muddati o'tganlarni EXPIRED qiladi)
 
-async expireOverdueSubscriptions(): Promise<User[]> {
-  const clients = await this.userRepository.find({
-    where: {
-      role: Role.Client,
-      subscriptionStatus: SubscriptionStatus.ACTIVE,
-      expiryDate: LessThan(new Date()),
+  async expireOverdueSubscriptions(): Promise<User[]> {
+    const clients = await this.userRepository.find({
+      where: {
+        role: Role.Client,
+        subscriptionStatus: Not(SubscriptionStatus.EXPIRED),
+        expiryDate: LessThan(new Date()),
+      },
+    });
+
+    for (const client of clients) {
+
+
+      client.subscriptionStatus = SubscriptionStatus.EXPIRED;
+
+      await this.userRepository.save(client);
+
+
+    }
+
+    return clients;
+  }
+
+  async findAll(
+  userId: number,
+  role: Role,
+  ownerId: number,
+  page = 1,
+  limit = 12,
+): Promise<PaginationResponse<User>> {
+
+  const skip = (page - 1) * limit;
+
+  let where: FindOptionsWhere<User>[];
+
+  switch (role) {
+    case Role.Admin:
+      // Admin faqat Clientlarni ko'radi
+      where = [
+        { role: Role.Client },
+      ];
+      break;
+
+    case Role.Client:
+      // Client o'zini va o'ziga tegishli foydalanuvchilarni ko'radi
+      where = [
+        { id: userId },
+        { ownerId: ownerId },
+      ];
+      break;
+
+    case Role.Manager:
+      // Manager o'zini va o'zi yaratgan kassirlarni ko'radi
+      where = [
+        { id: userId },
+        {
+          role: Role.Cashier,
+          ownerId: ownerId,
+        },
+      ];
+      break;
+
+    default:
+      where = [];
+  }
+
+  const [users, total] = await this.userRepository.findAndCount({
+    where,
+    take: limit,
+    skip,
+    order: {
+      id: 'DESC',
     },
   });
 
-  for (const client of clients) {
-    client.subscriptionStatus = SubscriptionStatus.EXPIRED;
-    await this.userRepository.save(client);
-
-  
-  }
-
-  return clients;
+  return {
+    data: plainToInstance(User, users, {
+      excludeExtraneousValues: true,
+    }),
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 }
-
-  async findAll(userId: number, role: Role, page: number = 1, limit: number = 12,): Promise<PaginationResponse<User>> {
-
-
-    const skip = (page - 1) * limit;
-
-
-
-    const roleFilters = {
-      [Role.Admin]: { role: Role.Client },
-      [Role.Client]: { role: Role.Cashier, createdBy: { id: userId } },
-    };
-
-
-
-    const filter = roleFilters[role];
-    if (!filter) {
-      throw new BadRequestException('Invalid role');
-    }
-
-    const [users, total] = await this.userRepository.findAndCount({
-      where: filter,
-      relations: role !== Role.Admin ? ['createdBy'] : [],
-      take: limit,
-      skip: skip
-
-    });
-
-
-
-    return {
-      data: users,
-      meta: {
-        page,
-        limit,
-        total: total,
-        totalPages: Math.ceil(total / limit),
-      },
-    }
-  }
 
   async findOne(id: number, currentUser: User): Promise<User> {
     const user = await this.userRepository.findOne({
@@ -375,22 +452,22 @@ async expireOverdueSubscriptions(): Promise<User[]> {
       }
     }
     console.log(user, 'bu updatedan oldingi malumot');
-    
-    
+
+
 
     user.fullName = data.fullName ?? user.fullName;
     user.brandName = data.brandName ?? user.brandName;
     user.phone = data.phone ?? user.phone;
     user.role = data.role ?? user.role;
     user.username = data.username ?? user.username;
-    
+
 
 
 
 
     await this.userRepository.save(user);
     console.log(user, 'bu updatedan keyingi xolat');
-    
+
     return { message: "Foydalanuvchi muvaffaqiyatli yangilandi" };
   }
 

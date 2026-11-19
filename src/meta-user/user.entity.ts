@@ -68,7 +68,7 @@ export class User {
   adminNote!: string | null;
 
 
-  
+
   // ===================================
 
   @Expose()
@@ -83,7 +83,7 @@ export class User {
   @Column({ nullable: true })
   telegramGroupId!: string;
 
- 
+
 
   @Expose()
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
@@ -113,7 +113,11 @@ export class User {
 
   @OneToMany(() => Statistics, (statistic) => statistic.user)
   statistics!: Statistics[];
-  
+
+
+  @Column({ default: 0, type: 'int' })
+  ownerId!: number;
+
 }
 
 

@@ -15,24 +15,20 @@ export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Post()
-  @Roles(Role.Admin, Role.Client)
-  create(@Body() data: UserDto, @Req() req) {
+  @Roles(Role.Admin, Role.Client, Role.Manager)
+  create(@Body() data: UserDto, @Req() req, @CurrentUser() user:User) {
     // data._role = req.user.role
     // console.log(data, req.user.role);
 
 
 
-    return this.userService.create(data, req.user.id, req.user.role);
+    return this.userService.create(data,user.id , user.role, user.ownerId);
   }
 
   @Get()
   @Roles(Role.Admin, Role.Manager, Role.Client)
-  findAll(@CurrentUser() user:User) {
-
-    const role = user.role
-    
-
-    return this.userService.findAll(user.id, role);
+  findAll(@CurrentUser() user:User, @Query('page') page: number = 1) {
+    return this.userService.findAll(user.id, user.role, user.ownerId, page);
 
   }
 

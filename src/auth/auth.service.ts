@@ -8,6 +8,7 @@ import { SubscriptionStatus } from 'common/enums/subscription-status.enum';
 import { AuditService } from 'src/audit/audit.service';
 import { AuditAction } from 'src/audit/entities/audit-log.entity';
 import { getOwnerId } from 'common/utils/owner.util';
+import { Role } from 'common/enums/role.enum';
 
 
 @Injectable()
@@ -49,6 +50,7 @@ async login(data: LoginDto): Promise<{ user: Partial<User>; token: string, roleO
     role: user.role,
     expiryDate: user.expiryDate,
     createdBy: user.createdBy ? { id: user.createdBy.id } : null,
+    ownerId: Role.Admin === user.role ? null : user.ownerId
   };
   const token = this.jwtService.sign(payload);
 

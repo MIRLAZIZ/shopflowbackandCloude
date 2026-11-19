@@ -25,6 +25,7 @@ import { TasksModule } from './schedule/tasks.module';
 import { PaymentsModule } from './payments/payments.module';
 import { AuditModule } from './audit/audit.module';
 import { InventoryModule } from './inventory/inventory.module';
+import {SubscriptionModule} from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -65,7 +66,8 @@ import { InventoryModule } from './inventory/inventory.module';
     ExpenseModule,
     FinanceModule,
     TasksModule,
-    PaymentsModule
+    PaymentsModule,
+    SubscriptionModule
 
   ],
   controllers: [AppController],

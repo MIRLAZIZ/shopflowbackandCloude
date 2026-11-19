@@ -2,7 +2,7 @@ import { Allow, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLeng
 import { Role } from "common/enums/role.enum";
 
 export default class UserDto {
- 
+
   @IsString()
   @IsNotEmpty({ message: "Ism bo'sh bo'lishi mumkin emas" })
   fullName!: string;
@@ -25,7 +25,7 @@ export default class UserDto {
   @IsNotEmpty()
   username!: string
 
-   // ✔️ Role oddiy validatsiya
+  // ✔️ Role oddiy validatsiya
   @IsEnum(Role, { message: "Role noto'g'ri kiritilgan" })
   role!: Role;
 
@@ -44,9 +44,15 @@ export default class UserDto {
   phone!: string
 
 
+  @IsOptional()
+  @IsNumber()
+  telegramId?: number
 
- 
- 
+
+  @IsOptional()
+  @IsString()
+  telegramGroupId?: string
+
 
 
 
